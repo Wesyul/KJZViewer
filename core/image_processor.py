@@ -44,25 +44,21 @@ class ImageProcessor:
         self.background = background.copy() if background is not None else None
     
     def convert_display_bits(self, image: np.ndarray) -> np.ndarray:
-        """
-        位深度转换（14-bit -> 8-bit）
-        
-        参数:
-            image: 输入图像
-            
-        返回:
-            转换后的图像
-        """
+        """转换显示位数"""
         if self.bit_mode == 8:
-            # 线性映射到 8-bit
-            img_min, img_max = image.min(), image.max()
-            if img_max > img_min:
-                normalized = (image - img_min) / (img_max - img_min)
-                return (normalized * 255).astype(np.uint8)
+            # 16bit -> 8bit 线性映射
+            if self.enable_auto_contrast:
+                min_val, max_val = image.min(), image.max()
+                if max_val > min_val:
+                    normalized = (image - min_val) / (max_val - min_val)
+                else:
+                    normalized = np.zeros_like(image, dtype=np.float32)
             else:
-                return np.zeros_like(image, dtype=np.uint8)
+                # 假设 14-bit 有效数据范围 0-16383
+                normalized = image / 16383.0
+            return (normalized * 255).astype(np.uint8)
         else:
-            # 保持 14-bit（实际使用 uint16）
+            # 保持原始位数
             return image.astype(np.uint16)
     
     def apply_auto_contrast(self, image: np.ndarray) -> np.ndarray:
