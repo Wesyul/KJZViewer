@@ -23,6 +23,12 @@ class ImageProcessor:
         self.enable_temporal = False
         self.enable_auto_contrast = False
         
+        # 新增：时域高级滤波开关
+        self.enable_temporal_median = False
+        self.enable_incoherent_integration = False
+        self.enable_outlier_rejection = False
+        self.enable_weak_target_processing = False
+        
         # 滤波参数
         self.gaussian_kernel = 5
         self.median_kernel = 3
@@ -30,6 +36,13 @@ class ImageProcessor:
         self.bilateral_sigma_color = 75
         self.bilateral_sigma_space = 75
         self.temporal_window = 5
+        
+        # 新增：时域高级滤波参数
+        self.temporal_median_window = 5
+        self.incoherent_integration_window = 5
+        self.outlier_rejection_window = 5
+        self.outlier_sigma = 2.0
+        self.weak_target_window = 7
         
         # 显示参数
         self.bit_mode = 8  # 8 或 14
@@ -104,8 +117,36 @@ class ImageProcessor:
             result = self.filters.subtract_background(result, self.background)
         
         # 2. 时域滤波（需要多帧数据）
-        if self.enable_temporal and all_frames is not None:
-            result = self.filters.temporal_average(all_frames, frame_idx, self.temporal_window)
+        # 注意：建议处理顺序是先去噪再增强
+        if all_frames is not None:
+            # 2.1 组合处理：微弱目标+闪烁噪声的一键处理
+            if self.enable_weak_target_processing:
+                result = self.filters.process_weak_target_with_flicker_noise(
+                    all_frames, frame_idx, self.weak_target_window
+                )
+            else:
+                # 2.2 去噪处理（优先级：异常点剔除 > 时域中值 > 普通时域平均）
+                if self.enable_outlier_rejection:
+                    result = self.filters.outlier_rejected_integration(
+                        all_frames, frame_idx, 
+                        self.outlier_rejection_window, 
+                        self.outlier_sigma
+                    )
+                elif self.enable_temporal_median:
+                    result = self.filters.temporal_median(
+                        all_frames, frame_idx, self.temporal_median_window
+                    )
+                elif self.enable_temporal:
+                    result = self.filters.temporal_average(
+                        all_frames, frame_idx, self.temporal_window
+                    )
+                
+                # 2.3 增强处理：非相干积累（在去噪之后应用）
+                if self.enable_incoherent_integration and not self.enable_outlier_rejection:
+                    # 注意：如果已经使用异常点剔除累加，就不需要再做非相干积累
+                    result = self.filters.incoherent_integration(
+                        all_frames, frame_idx, self.incoherent_integration_window
+                    )
         
         # 3. 空域滤波
         if self.enable_gaussian:
