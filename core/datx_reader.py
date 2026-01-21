@@ -56,9 +56,9 @@ class DatxReader:
         data = raw_data[:valid_pixels]
         
         # reshape: 与 MATLAB reshape(frame_data, [W H])' 等价
-        # MATLAB 是列优先，所以先 reshape 成 (n_frames, W, H)，再转置
-        self.frames = data.reshape(self.n_frames, self.width, self.height)
-        self.frames = np.transpose(self.frames, (0, 2, 1))  # (n_frames, H, W)
+        # MATLAB 是列优先，所以先 reshape 成 (W, H, n_frames) 用 order='F'，再转置
+        self.frames = data.reshape(self.width, self.height, self.n_frames, order='F')
+        self.frames = np.transpose(self.frames, (2, 1, 0))  # (n_frames, H, W)
         
         return self.frames
     
