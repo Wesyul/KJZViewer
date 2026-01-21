@@ -53,3 +53,7 @@ htmlcov/
 /tmp/
 *.tmp
 *.log
+
+# Test/example scripts (optional - can be included in repo)
+# test_functionality.py
+# example_usage.py
