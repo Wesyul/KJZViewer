@@ -84,7 +84,7 @@ class ImageProcessor:
             
             if max_val > min_val:
                 normalized = (image - min_val) / (max_val - min_val)
-                # 裁剪到 [0, 1] 范围
+                # 裁剪到 [0, 1] 范围（当使用百分比裁剪时，超出百分位范围的像素值可能超出 [0,1]）
                 normalized = np.clip(normalized, 0, 1)
             else:
                 normalized = np.zeros_like(image, dtype=np.float32)
@@ -101,6 +101,7 @@ class ImageProcessor:
             
             if max_val > min_val:
                 normalized = (image - min_val) / (max_val - min_val)
+                # 裁剪到 [0, 1] 范围（当使用百分比裁剪时，超出百分位范围的像素值可能超出 [0,1]）
                 normalized = np.clip(normalized, 0, 1)
                 return (normalized * 16383).astype(np.uint16)
             else:
