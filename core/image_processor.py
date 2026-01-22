@@ -47,6 +47,11 @@ class ImageProcessor:
         # 显示参数
         self.bit_mode = 8  # 8 或 14
         
+        # 百分比裁剪参数
+        self.enable_percentile_clipping = False
+        self.low_percentile = 1.0  # 下限百分比（排除最暗的1%）
+        self.high_percentile = 99.0  # 上限百分比（排除最亮的1%）
+        
     def set_background(self, background: np.ndarray):
         """
         设置背景图像
@@ -57,22 +62,50 @@ class ImageProcessor:
         self.background = background.copy() if background is not None else None
     
     def convert_display_bits(self, image: np.ndarray) -> np.ndarray:
-        """转换显示位数"""
+        """
+        转换显示位数
+        
+        参数:
+            image: 输入图像
+            
+        返回:
+            转换后的图像
+        """
         if self.bit_mode == 8:
             # 16bit -> 8bit 线性映射
-            if self.enable_auto_contrast:
-                min_val, max_val = image.min(), image.max()
-                if max_val > min_val:
-                    normalized = (image - min_val) / (max_val - min_val)
-                else:
-                    normalized = np.zeros_like(image, dtype=np.float32)
+            # 默认使用实际最大最小值归一化（而不是理论最大值）
+            if self.enable_percentile_clipping:
+                # 使用百分比裁剪：排除极端噪点
+                min_val = np.percentile(image, self.low_percentile)
+                max_val = np.percentile(image, self.high_percentile)
             else:
-                # 假设 14-bit 有效数据范围 0-16383
-                normalized = image / 16383.0
+                # 使用实际最大最小值
+                min_val, max_val = image.min(), image.max()
+            
+            if max_val > min_val:
+                normalized = (image - min_val) / (max_val - min_val)
+                # 裁剪到 [0, 1] 范围（当使用百分比裁剪时，超出百分位范围的像素值可能超出 [0,1]）
+                normalized = np.clip(normalized, 0, 1)
+            else:
+                normalized = np.zeros_like(image, dtype=np.float32)
+                
             return (normalized * 255).astype(np.uint8)
         else:
-            # 保持原始位数
-            return image.astype(np.uint16)
+            # 保持 14-bit 原始位数
+            # 也使用实际动态范围进行归一化
+            if self.enable_percentile_clipping:
+                min_val = np.percentile(image, self.low_percentile)
+                max_val = np.percentile(image, self.high_percentile)
+            else:
+                min_val, max_val = image.min(), image.max()
+            
+            if max_val > min_val:
+                normalized = (image - min_val) / (max_val - min_val)
+                # 裁剪到 [0, 1] 范围（当使用百分比裁剪时，超出百分位范围的像素值可能超出 [0,1]）
+                normalized = np.clip(normalized, 0, 1)
+                return (normalized * 16383).astype(np.uint16)
+            else:
+                return image.astype(np.uint16)
     
     def apply_auto_contrast(self, image: np.ndarray) -> np.ndarray:
         """
