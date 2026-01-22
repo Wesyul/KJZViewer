@@ -141,6 +141,33 @@ class MainWindow(QMainWindow):
         self.auto_contrast_cb.stateChanged.connect(self.on_setting_changed)
         layout.addWidget(self.auto_contrast_cb)
         
+        # 百分比裁剪
+        self.percentile_clipping_cb = QCheckBox("百分比裁剪（排除异常值）")
+        self.percentile_clipping_cb.stateChanged.connect(self.on_setting_changed)
+        layout.addWidget(self.percentile_clipping_cb)
+        
+        # 低百分比设置
+        low_percentile_layout = QHBoxLayout()
+        low_percentile_layout.addWidget(QLabel("  下限百分比:"))
+        self.low_percentile_spin = QSpinBox()
+        self.low_percentile_spin.setRange(0, 10)
+        self.low_percentile_spin.setValue(1)
+        self.low_percentile_spin.setSuffix("%")
+        self.low_percentile_spin.valueChanged.connect(self.on_setting_changed)
+        low_percentile_layout.addWidget(self.low_percentile_spin)
+        layout.addLayout(low_percentile_layout)
+        
+        # 高百分比设置
+        high_percentile_layout = QHBoxLayout()
+        high_percentile_layout.addWidget(QLabel("  上限百分比:"))
+        self.high_percentile_spin = QSpinBox()
+        self.high_percentile_spin.setRange(90, 100)
+        self.high_percentile_spin.setValue(99)
+        self.high_percentile_spin.setSuffix("%")
+        self.high_percentile_spin.valueChanged.connect(self.on_setting_changed)
+        high_percentile_layout.addWidget(self.high_percentile_spin)
+        layout.addLayout(high_percentile_layout)
+        
         # 伪彩色映射
         colormap_layout = QHBoxLayout()
         colormap_layout.addWidget(QLabel("伪彩色:"))
@@ -215,6 +242,75 @@ class MainWindow(QMainWindow):
         self.temporal_spin.valueChanged.connect(self.on_setting_changed)
         temporal_window_layout.addWidget(self.temporal_spin)
         layout.addLayout(temporal_window_layout)
+        
+        # 时域中值滤波
+        self.temporal_median_cb = QCheckBox("时域中值滤波")
+        self.temporal_median_cb.stateChanged.connect(self.on_setting_changed)
+        layout.addWidget(self.temporal_median_cb)
+        
+        temporal_median_window_layout = QHBoxLayout()
+        temporal_median_window_layout.addWidget(QLabel("  窗口大小:"))
+        self.temporal_median_spin = QSpinBox()
+        self.temporal_median_spin.setRange(3, 21)
+        self.temporal_median_spin.setSingleStep(2)
+        self.temporal_median_spin.setValue(5)
+        self.temporal_median_spin.valueChanged.connect(self.on_setting_changed)
+        temporal_median_window_layout.addWidget(self.temporal_median_spin)
+        layout.addLayout(temporal_median_window_layout)
+        
+        # 非相干积累
+        self.incoherent_integration_cb = QCheckBox("非相干积累")
+        self.incoherent_integration_cb.stateChanged.connect(self.on_setting_changed)
+        layout.addWidget(self.incoherent_integration_cb)
+        
+        incoherent_window_layout = QHBoxLayout()
+        incoherent_window_layout.addWidget(QLabel("  窗口大小:"))
+        self.incoherent_integration_spin = QSpinBox()
+        self.incoherent_integration_spin.setRange(3, 21)
+        self.incoherent_integration_spin.setSingleStep(2)
+        self.incoherent_integration_spin.setValue(5)
+        self.incoherent_integration_spin.valueChanged.connect(self.on_setting_changed)
+        incoherent_window_layout.addWidget(self.incoherent_integration_spin)
+        layout.addLayout(incoherent_window_layout)
+        
+        # 异常点剔除累加
+        self.outlier_rejection_cb = QCheckBox("异常点剔除累加")
+        self.outlier_rejection_cb.stateChanged.connect(self.on_setting_changed)
+        layout.addWidget(self.outlier_rejection_cb)
+        
+        outlier_window_layout = QHBoxLayout()
+        outlier_window_layout.addWidget(QLabel("  窗口大小:"))
+        self.outlier_rejection_spin = QSpinBox()
+        self.outlier_rejection_spin.setRange(3, 21)
+        self.outlier_rejection_spin.setSingleStep(2)
+        self.outlier_rejection_spin.setValue(5)
+        self.outlier_rejection_spin.valueChanged.connect(self.on_setting_changed)
+        outlier_window_layout.addWidget(self.outlier_rejection_spin)
+        layout.addLayout(outlier_window_layout)
+        
+        outlier_sigma_layout = QHBoxLayout()
+        outlier_sigma_layout.addWidget(QLabel("  Sigma阈值:"))
+        self.outlier_sigma_spin = QSpinBox()
+        self.outlier_sigma_spin.setRange(1, 5)
+        self.outlier_sigma_spin.setValue(2)
+        self.outlier_sigma_spin.valueChanged.connect(self.on_setting_changed)
+        outlier_sigma_layout.addWidget(self.outlier_sigma_spin)
+        layout.addLayout(outlier_sigma_layout)
+        
+        # 微弱目标处理
+        self.weak_target_cb = QCheckBox("微弱目标处理")
+        self.weak_target_cb.stateChanged.connect(self.on_setting_changed)
+        layout.addWidget(self.weak_target_cb)
+        
+        weak_target_window_layout = QHBoxLayout()
+        weak_target_window_layout.addWidget(QLabel("  窗口大小:"))
+        self.weak_target_spin = QSpinBox()
+        self.weak_target_spin.setRange(3, 21)
+        self.weak_target_spin.setSingleStep(2)
+        self.weak_target_spin.setValue(7)
+        self.weak_target_spin.valueChanged.connect(self.on_setting_changed)
+        weak_target_window_layout.addWidget(self.weak_target_spin)
+        layout.addLayout(weak_target_window_layout)
         
         group.setLayout(layout)
         return group
@@ -304,17 +400,40 @@ class MainWindow(QMainWindow):
     
     def on_setting_changed(self):
         """设置变化处理"""
-        # 更新处理器参数
+        # 更新处理器参数 - 显示设置
         self.processor.enable_auto_contrast = self.auto_contrast_cb.isChecked()
+        self.processor.enable_percentile_clipping = self.percentile_clipping_cb.isChecked()
+        self.processor.low_percentile = float(self.low_percentile_spin.value())
+        self.processor.high_percentile = float(self.high_percentile_spin.value())
+        
+        # 空域滤波
         self.processor.enable_gaussian = self.gaussian_cb.isChecked()
         self.processor.enable_median = self.median_cb.isChecked()
         self.processor.enable_bilateral = self.bilateral_cb.isChecked()
-        self.processor.enable_temporal = self.temporal_cb.isChecked()
-        self.processor.enable_background_subtraction = self.subtract_bg_cb.isChecked()
         
         self.processor.gaussian_kernel = self.gaussian_spin.value()
         self.processor.median_kernel = self.median_spin.value()
+        
+        # 时域滤波 - 基础
+        self.processor.enable_temporal = self.temporal_cb.isChecked()
         self.processor.temporal_window = self.temporal_spin.value()
+        
+        # 时域滤波 - 高级
+        self.processor.enable_temporal_median = self.temporal_median_cb.isChecked()
+        self.processor.temporal_median_window = self.temporal_median_spin.value()
+        
+        self.processor.enable_incoherent_integration = self.incoherent_integration_cb.isChecked()
+        self.processor.incoherent_integration_window = self.incoherent_integration_spin.value()
+        
+        self.processor.enable_outlier_rejection = self.outlier_rejection_cb.isChecked()
+        self.processor.outlier_rejection_window = self.outlier_rejection_spin.value()
+        self.processor.outlier_sigma = float(self.outlier_sigma_spin.value())
+        
+        self.processor.enable_weak_target_processing = self.weak_target_cb.isChecked()
+        self.processor.weak_target_window = self.weak_target_spin.value()
+        
+        # 背景处理
+        self.processor.enable_background_subtraction = self.subtract_bg_cb.isChecked()
         
         self.update_display()
     
